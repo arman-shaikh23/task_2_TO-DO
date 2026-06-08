@@ -25,9 +25,11 @@ const TaskCard = ({ task, onEdit, onDelete, onToggle, onDragStart, isOverdue = f
         <button className="ghost-button" onClick={() => onToggle(task)}>
           {task.status === "completed" ? "Mark Pending" : "Complete"}
         </button>
-        <button className="ghost-button" onClick={() => onEdit(task)}>
-          Edit
-        </button>
+        {task.status !== "completed" && (
+          <button className="ghost-button" onClick={() => onEdit(task)}>
+            Edit
+          </button>
+        )}
         <button className="danger-button subtle" onClick={() => onDelete(task)}>
           Delete
         </button>
