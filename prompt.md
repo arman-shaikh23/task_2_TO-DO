@@ -361,4 +361,14 @@ in weekly moment have temp data or based on my task releted please explain if te
 why in this dahabord is start with tue insted of sunday please start first day with sunday and show in graph first day sunday then monday and so on
 ```
 
+```text
+please make me update readme.md and also update prompt.md and also in task section if next page is not then next is not show and not previourse show if user go for next page then previous show and if next page is exits then next page option  show and make navbar to lock and make small becuse it is too big and make use evry space and make it better
+```
 
+```text
+please see bugs in when i add task at that time task page is undert navabr so that create task some parts is cut and also in close section why you make it close please make distance in between
+```
+
+```text
+when 3 to 4 task added in any col named pending overdue or completed then one ui bugs come like one shred line come why this bugs come please solve it 
+```

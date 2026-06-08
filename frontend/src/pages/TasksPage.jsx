@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../services/api";
-import Loader from "../components/Loader";
 import TaskCard from "../components/TaskCard";
 import TaskModal from "../components/TaskModal";
 import ConfirmModal from "../components/ConfirmModal";
@@ -15,15 +14,31 @@ const defaultFilters = {
   category: "all",
   sortBy: "custom",
   page: 1,
-  limit: 6,
+  limit: 9,
 };
+
+const getStartOfDay = (date) => {
+  const value = new Date(date);
+  value.setHours(0, 0, 0, 0);
+  return value;
+};
+
+const isOverdueTask = (task, todayStart) =>
+  task.status !== "completed" && task.dueDate && getStartOfDay(task.dueDate) < todayStart;
 
 const TasksPage = () => {
   useDocumentTitle("Tasks");
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
-  const [categories, setCategories] = useState(["Personal", "Work", "Study", "Health", "Shopping", "Other"]);
+  const [categories, setCategories] = useState([
+    "Personal",
+    "Work",
+    "Study",
+    "Health",
+    "Shopping",
+    "Other",
+  ]);
   const [filters, setFilters] = useState(defaultFilters);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -32,15 +47,45 @@ const TasksPage = () => {
   const [draggedId, setDraggedId] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  const queryString = useMemo(() => new URLSearchParams(filters).toString(), [filters]);
+  const todayStart = useMemo(() => getStartOfDay(new Date()), []);
+  const requestFilters = useMemo(
+    () => ({
+      ...filters,
+      status: filters.status === "overdue" ? "pending" : filters.status,
+    }),
+    [filters]
+  );
+  const queryString = useMemo(() => new URLSearchParams(requestFilters).toString(), [requestFilters]);
+
+  const applyClientFilters = (incomingTasks) => {
+    if (filters.status === "overdue") {
+      return incomingTasks.filter((task) => isOverdueTask(task, todayStart));
+    }
+
+    return incomingTasks;
+  };
+
+  const pendingTasks = useMemo(
+    () => tasks.filter((task) => task.status === "pending" && !isOverdueTask(task, todayStart)),
+    [tasks, todayStart]
+  );
+  const completedTasks = useMemo(() => tasks.filter((task) => task.status === "completed"), [tasks]);
+  const overdueTasks = useMemo(
+    () => tasks.filter((task) => isOverdueTask(task, todayStart)),
+    [tasks, todayStart]
+  );
 
   const loadTodos = async () => {
     setLoading(true);
     try {
       const { data } = await api.get(`/todos?${queryString}`);
-      setTasks(data.todos);
+      const visibleTasks = applyClientFilters(data.todos);
+      setTasks(visibleTasks);
       setCategories(data.categories);
-      setPagination(data.pagination);
+      setPagination({
+        ...data.pagination,
+        total: filters.status === "overdue" ? visibleTasks.length : data.pagination.total,
+      });
     } catch (error) {
       showToast(error.response?.data?.message || "Unable to load tasks", "error");
     } finally {
@@ -52,8 +97,9 @@ const TasksPage = () => {
     const timer = setTimeout(() => {
       loadTodos();
     }, filters.search ? 250 : 0);
+
     return () => clearTimeout(timer);
-  }, [queryString]);
+  }, [queryString, filters.status]);
 
   const handleSaveTask = async (formData) => {
     try {
@@ -64,6 +110,7 @@ const TasksPage = () => {
         await api.post("/todos", formData);
         showToast("Task created");
       }
+
       setEditingTask(null);
       setIsModalOpen(false);
       loadTodos();
@@ -91,6 +138,7 @@ const TasksPage = () => {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 1500);
       }
+
       showToast(nextStatus === "completed" ? "Task completed" : "Task marked pending");
       loadTodos();
     } catch (error) {
@@ -98,20 +146,26 @@ const TasksPage = () => {
     }
   };
 
-  const handleDrop = async (targetId) => {
-    if (!draggedId || draggedId === targetId) return;
-    const ordered = [...tasks];
-    const fromIndex = ordered.findIndex((task) => task._id === draggedId);
-    const toIndex = ordered.findIndex((task) => task._id === targetId);
-    const [moved] = ordered.splice(fromIndex, 1);
-    ordered.splice(toIndex, 0, moved);
-    setTasks(ordered);
+  const handleDropToLane = async (nextStatus) => {
+    if (!draggedId) return;
 
     try {
-      await api.put("/todos/reorder", { orderedIds: ordered.map((task) => task._id) });
-      showToast("Task order updated");
+      const task = tasks.find((item) => item._id === draggedId);
+      if (!task || task.status === nextStatus) {
+        setDraggedId(null);
+        return;
+      }
+
+      await api.patch(`/todos/${draggedId}/status`, { status: nextStatus });
+      if (nextStatus === "completed") {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 1500);
+      }
+
+      showToast(nextStatus === "completed" ? "Task completed" : "Task moved back to pending");
+      loadTodos();
     } catch (error) {
-      showToast(error.response?.data?.message || "Reorder failed", "error");
+      showToast(error.response?.data?.message || "Unable to move task", "error");
     } finally {
       setDraggedId(null);
     }
@@ -120,10 +174,12 @@ const TasksPage = () => {
   return (
     <section className="page-shell">
       {showConfetti ? <div className="confetti-layer" /> : null}
+
       <div className="tasks-toolbar glass">
-        <div>
+        <div className="page-hero-copy">
           <span className="eyebrow">Task command center</span>
           <h2>Capture, prioritize, and flow through your work.</h2>
+          <p className="toolbar-copy">Drag any card between lanes to update its status instantly.</p>
         </div>
         <button
           className="primary-button"
@@ -142,18 +198,28 @@ const TasksPage = () => {
           value={filters.search}
           onChange={(event) => setFilters({ ...filters, search: event.target.value, page: 1 })}
         />
-        <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value, page: 1 })}>
+        <select
+          value={filters.status}
+          onChange={(event) => setFilters({ ...filters, status: event.target.value, page: 1 })}
+        >
           <option value="all">All Status</option>
           <option value="pending">Pending</option>
           <option value="completed">Completed</option>
+          <option value="overdue">Overdue</option>
         </select>
-        <select value={filters.priority} onChange={(event) => setFilters({ ...filters, priority: event.target.value, page: 1 })}>
+        <select
+          value={filters.priority}
+          onChange={(event) => setFilters({ ...filters, priority: event.target.value, page: 1 })}
+        >
           <option value="all">All Priorities</option>
           <option value="High">High</option>
           <option value="Medium">Medium</option>
           <option value="Low">Low</option>
         </select>
-        <select value={filters.category} onChange={(event) => setFilters({ ...filters, category: event.target.value, page: 1 })}>
+        <select
+          value={filters.category}
+          onChange={(event) => setFilters({ ...filters, category: event.target.value, page: 1 })}
+        >
           <option value="all">All Categories</option>
           {categories.map((category) => (
             <option key={category} value={category}>
@@ -161,7 +227,10 @@ const TasksPage = () => {
             </option>
           ))}
         </select>
-        <select value={filters.sortBy} onChange={(event) => setFilters({ ...filters, sortBy: event.target.value })}>
+        <select
+          value={filters.sortBy}
+          onChange={(event) => setFilters({ ...filters, sortBy: event.target.value })}
+        >
           <option value="custom">Custom Order</option>
           <option value="latest">Latest</option>
           <option value="oldest">Oldest</option>
@@ -178,41 +247,126 @@ const TasksPage = () => {
         </div>
       ) : tasks.length ? (
         <>
-          <div className="task-grid">
-            {tasks.map((task) => (
-              <TaskCard
-                key={task._id}
-                task={task}
-                onEdit={(selected) => {
-                  setEditingTask(selected);
-                  setIsModalOpen(true);
-                }}
-                onDelete={setTaskToDelete}
-                onToggle={handleToggleStatus}
-                onDragStart={setDraggedId}
-                onDrop={handleDrop}
-                onDragOver={(event) => event.preventDefault()}
-              />
-            ))}
-          </div>
-          <div className="pagination">
-            <button
-              className="ghost-button"
-              disabled={pagination.page <= 1}
-              onClick={() => setFilters({ ...filters, page: filters.page - 1 })}
+          <div className="task-board">
+            <section
+              className="task-lane glass"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={() => handleDropToLane("pending")}
             >
-              Previous
-            </button>
+              <div className="lane-header">
+                <div>
+                  <h3>Pending</h3>
+                  <p>Active work that is still on track.</p>
+                </div>
+                <span className="lane-count">{pendingTasks.length}</span>
+              </div>
+              <div className="lane-card-stack">
+                {pendingTasks.length ? (
+                  pendingTasks.map((task) => (
+                    <TaskCard
+                      key={task._id}
+                      task={task}
+                      onEdit={(selected) => {
+                        setEditingTask(selected);
+                        setIsModalOpen(true);
+                      }}
+                      onDelete={setTaskToDelete}
+                      onToggle={handleToggleStatus}
+                      onDragStart={setDraggedId}
+                    />
+                  ))
+                ) : (
+                  <div className="lane-dropzone">Drop tasks here to keep them pending.</div>
+                )}
+              </div>
+            </section>
+
+            <section className="task-lane glass">
+              <div className="lane-header">
+                <div>
+                  <h3>Overdue</h3>
+                  <p>Due date passed and still not completed.</p>
+                </div>
+                <span className="lane-count overdue-count">{overdueTasks.length}</span>
+              </div>
+              <div className="lane-card-stack">
+                {overdueTasks.length ? (
+                  overdueTasks.map((task) => (
+                    <TaskCard
+                      key={task._id}
+                      task={task}
+                      isOverdue
+                      onEdit={(selected) => {
+                        setEditingTask(selected);
+                        setIsModalOpen(true);
+                      }}
+                      onDelete={setTaskToDelete}
+                      onToggle={handleToggleStatus}
+                      onDragStart={setDraggedId}
+                    />
+                  ))
+                ) : (
+                  <div className="lane-dropzone lane-dropzone-passive">
+                    Nice work. No overdue tasks right now.
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section
+              className="task-lane glass"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={() => handleDropToLane("completed")}
+            >
+              <div className="lane-header">
+                <div>
+                  <h3>Completed</h3>
+                  <p>Drop a task here to mark it done.</p>
+                </div>
+                <span className="lane-count completed-count">{completedTasks.length}</span>
+              </div>
+              <div className="lane-card-stack">
+                {completedTasks.length ? (
+                  completedTasks.map((task) => (
+                    <TaskCard
+                      key={task._id}
+                      task={task}
+                      onEdit={(selected) => {
+                        setEditingTask(selected);
+                        setIsModalOpen(true);
+                      }}
+                      onDelete={setTaskToDelete}
+                      onToggle={handleToggleStatus}
+                      onDragStart={setDraggedId}
+                    />
+                  ))
+                ) : (
+                  <div className="lane-dropzone">Drop tasks here to complete them.</div>
+                )}
+              </div>
+            </section>
+          </div>
+
+          <div className="pagination">
+            {pagination.page > 1 && (
+              <button
+                className="ghost-button"
+                onClick={() => setFilters({ ...filters, page: filters.page - 1 })}
+              >
+                Previous
+              </button>
+            )}
             <span>
               Page {pagination.page} of {pagination.totalPages || 1}
             </span>
-            <button
-              className="ghost-button"
-              disabled={pagination.page >= pagination.totalPages}
-              onClick={() => setFilters({ ...filters, page: filters.page + 1 })}
-            >
-              Next
-            </button>
+            {pagination.page < pagination.totalPages && (
+              <button
+                className="ghost-button"
+                onClick={() => setFilters({ ...filters, page: filters.page + 1 })}
+              >
+                Next
+              </button>
+            )}
           </div>
         </>
       ) : (
@@ -234,6 +388,7 @@ const TasksPage = () => {
         }}
         onSave={handleSaveTask}
       />
+
       <ConfirmModal
         open={Boolean(taskToDelete)}
         title="Delete task?"
@@ -246,4 +401,3 @@ const TasksPage = () => {
 };
 
 export default TasksPage;
-

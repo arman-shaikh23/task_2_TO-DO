@@ -9,8 +9,7 @@ const ProtectedRoute = () => {
     return <Loader fullScreen label="Preparing your workspace" />;
   }
 
-  return auth?.token ? <Outlet /> : <Navigate to="/login" replace />;
+  return auth?.isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;
-

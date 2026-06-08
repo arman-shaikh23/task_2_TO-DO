@@ -27,6 +27,9 @@ const getStartOfWeek = (date) => {
   return value;
 };
 
+const isOverdueTask = (task, todayStart) =>
+  task.status !== "completed" && task.dueDate && getStartOfDay(task.dueDate) < todayStart;
+
 const DashboardPage = () => {
   useDocumentTitle("Dashboard");
   const { auth } = useAuth();
@@ -40,6 +43,7 @@ const DashboardPage = () => {
           api.get("/todos?limit=100&sortBy=custom"),
           api.get("/auth/profile"),
         ]);
+
         setPayload({
           todos: todoResponse.data.todos,
           stats: profileResponse.data.stats,
@@ -54,8 +58,7 @@ const DashboardPage = () => {
 
   const analytics = useMemo(() => {
     const todos = payload?.todos || [];
-    const today = new Date();
-    const todayStart = getStartOfDay(today);
+    const todayStart = getStartOfDay(new Date());
     const todayKey = todayStart.toDateString();
     const weekStart = getStartOfWeek(todayStart);
     const weekEnd = new Date(weekStart);
@@ -63,14 +66,15 @@ const DashboardPage = () => {
 
     const highPriority = todos.filter((todo) => todo.priority === "High").length;
     const pending = todos.filter((todo) => todo.status === "pending").length;
+    const overdue = todos.filter((todo) => isOverdueTask(todo, todayStart)).length;
     const todaysTasks = todos.filter((todo) =>
-      todo.dueDate ? new Date(todo.dueDate).toDateString() === todayKey : false
+      todo.dueDate ? getStartOfDay(todo.dueDate).toDateString() === todayKey : false
     ).length;
     const upcoming = todos.filter((todo) =>
       todo.dueDate ? getStartOfDay(todo.dueDate) > todayStart : false
     ).length;
     const completedThisWeek = todos.filter((todo) =>
-      todo.updatedAt && todo.status === "completed"
+      todo.status === "completed" && todo.updatedAt
         ? getStartOfDay(todo.updatedAt) >= weekStart &&
           getStartOfDay(todo.updatedAt) <= weekEnd
         : false
@@ -97,7 +101,15 @@ const DashboardPage = () => {
       };
     });
 
-    return { highPriority, pending, todaysTasks, upcoming, completedThisWeek, weeklyMomentum };
+    return {
+      highPriority,
+      pending,
+      overdue,
+      todaysTasks,
+      upcoming,
+      completedThisWeek,
+      weeklyMomentum,
+    };
   }, [payload]);
 
   if (loading) {
@@ -112,12 +124,12 @@ const DashboardPage = () => {
   return (
     <section className="page-shell">
       <div className="page-hero glass">
-        <div>
+        <div className="page-hero-copy">
           <span className="eyebrow">Welcome back, {auth?.user?.name}</span>
-          <h2>Turn today’s priorities into calm, visible progress.</h2>
+          <h2>Turn today's priorities into calm, visible progress.</h2>
           <p>{quote}</p>
         </div>
-        <div className="progress-ring">
+        <div className="progress-ring" style={{ background: `conic-gradient(var(--success) 0 ${productivity}%, rgba(255, 255, 255, 0.08) ${productivity}% 100%)` }}>
           <strong>{productivity}%</strong>
           <span>Productivity</span>
         </div>
@@ -152,13 +164,17 @@ const DashboardPage = () => {
               <strong>{analytics.completedThisWeek}</strong>
               <span>Completed this week</span>
             </div>
+            <div>
+              <strong>{analytics.overdue}</strong>
+              <span>Overdue</span>
+            </div>
           </div>
         </article>
 
         <article className="glass panel">
           <div className="panel-header">
             <h3>Weekly Momentum</h3>
-            <span>7-day snapshot</span>
+            <span>Sun to Sat activity</span>
           </div>
           {totalTasks ? (
             <div className="weekly-bars">

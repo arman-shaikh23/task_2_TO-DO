@@ -1,11 +1,10 @@
 import User from "../models/User.js";
 import Todo from "../models/Todo.js";
-import { generateToken } from "../utils/generateToken.js";
 import { isStrongPassword } from "../utils/validators.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 const buildAuthPayload = (user, rememberMe = false) => ({
-  token: generateToken(user._id),
+  isAuthenticated: true,
   rememberMe,
   user: {
     id: user._id,
@@ -14,6 +13,27 @@ const buildAuthPayload = (user, rememberMe = false) => ({
     createdAt: user.createdAt,
   },
 });
+
+const persistSession = (req, userId, rememberMe) =>
+  new Promise((resolve, reject) => {
+    req.session.userId = userId.toString();
+    req.session.rememberMe = Boolean(rememberMe);
+
+    if (rememberMe) {
+      req.session.cookie.maxAge = 1000 * 60 * 60 * 24 * 7;
+    } else {
+      req.session.cookie.expires = false;
+    }
+
+    req.session.save((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  });
 
 export const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, rememberMe } = req.body;
@@ -34,6 +54,7 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
 
   const user = await User.create({ name, email, password });
+  await persistSession(req, user._id, rememberMe);
   res.status(201).json(buildAuthPayload(user, rememberMe));
 });
 
@@ -49,6 +70,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: "Invalid credentials" });
   }
 
+  await persistSession(req, user._id, rememberMe);
   res.json(buildAuthPayload(user, rememberMe));
 });
 
@@ -61,6 +83,7 @@ export const getProfile = asyncHandler(async (req, res) => {
 
   res.json({
     user: req.user,
+    rememberMe: Boolean(req.session.rememberMe),
     stats: {
       totalTasks: todos.length,
       completedTasks,
@@ -96,5 +119,12 @@ export const updateProfile = asyncHandler(async (req, res) => {
       name: updated.name,
       email: updated.email,
     },
+  });
+});
+
+export const logoutUser = asyncHandler(async (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie("taskflow.sid");
+    res.json({ message: "Logged out successfully" });
   });
 });

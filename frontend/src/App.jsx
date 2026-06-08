@@ -25,7 +25,7 @@ const AppShell = () => (
 
 const AuthRedirect = ({ children }) => {
   const { auth } = useAuth();
-  return auth?.token ? <Navigate to="/" replace /> : children;
+  return auth?.isAuthenticated ? <Navigate to="/" replace /> : children;
 };
 
 const App = () => (
@@ -53,4 +53,3 @@ const App = () => (
 );
 
 export default App;
-

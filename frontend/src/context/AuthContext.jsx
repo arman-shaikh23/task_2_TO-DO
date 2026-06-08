@@ -3,36 +3,24 @@ import api from "../services/api";
 
 const AuthContext = createContext();
 
-const storageKey = "taskflowAuth";
-
 export const AuthProvider = ({ children }) => {
-  const [auth, setAuth] = useState(() => {
-    const persistent = localStorage.getItem(storageKey);
-    const session = sessionStorage.getItem(storageKey);
-    return persistent ? JSON.parse(persistent) : session ? JSON.parse(session) : null;
-  });
+  const [auth, setAuth] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const bootstrap = async () => {
-      if (!auth?.token) {
-        setLoading(false);
-        return;
-      }
-
       try {
         const { data } = await api.get("/auth/profile");
-        setAuth((current) => ({
-          ...current,
+        setAuth({
+          isAuthenticated: true,
+          rememberMe: Boolean(data.rememberMe),
           user: {
             id: data.user._id || data.user.id,
             name: data.user.name,
             email: data.user.email,
           },
-        }));
+        });
       } catch {
-        localStorage.removeItem(storageKey);
-        sessionStorage.removeItem(storageKey);
         setAuth(null);
       } finally {
         setLoading(false);
@@ -42,41 +30,33 @@ export const AuthProvider = ({ children }) => {
     bootstrap();
   }, []);
 
-  const persistAuth = (payload) => {
-    const targetStorage = payload.rememberMe ? localStorage : sessionStorage;
-    const secondaryStorage = payload.rememberMe ? sessionStorage : localStorage;
-    secondaryStorage.removeItem(storageKey);
-    targetStorage.setItem(storageKey, JSON.stringify(payload));
-    setAuth(payload);
-  };
-
   const register = async (formData) => {
     const { data } = await api.post("/auth/register", formData);
-    persistAuth(data);
+    setAuth(data);
     return data;
   };
 
   const login = async (formData) => {
     const { data } = await api.post("/auth/login", formData);
-    persistAuth(data);
+    setAuth(data);
     return data;
   };
 
-  const logout = () => {
-    localStorage.removeItem(storageKey);
-    sessionStorage.removeItem(storageKey);
+  const logout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      // Ignore logout failures and clear local auth state anyway.
+    }
     setAuth(null);
   };
 
   const updateProfile = async (payload) => {
     const { data } = await api.put("/auth/profile", payload);
-    setAuth((current) => {
-      const next = { ...current, user: { ...current.user, ...data.user } };
-      const storedInLocal = localStorage.getItem(storageKey);
-      const target = storedInLocal ? localStorage : sessionStorage;
-      target.setItem(storageKey, JSON.stringify(next));
-      return next;
-    });
+    setAuth((current) => ({
+      ...current,
+      user: { ...current.user, ...data.user },
+    }));
     return data;
   };
 
@@ -88,4 +68,3 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
-

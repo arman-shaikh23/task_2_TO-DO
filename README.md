@@ -52,6 +52,8 @@ task_2/
 - Replaced the demo weekly momentum chart data with real task-based analytics.
 - Updated weekly momentum to use your actual calendar week, always ordered as `Sun, Mon, Tue, Wed, Thu, Fri, Sat`.
 - Weekly momentum now reflects task activity from your own data by counting tasks created and completed per day.
+- Updated task pagination to conditionally hide the Previous and Next buttons based on the current page availability.
+- Refined the top navbar to lock securely at the top, occupy 100% width, and use space more efficiently.
 
 ## Database Schema
 

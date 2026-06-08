@@ -6,8 +6,8 @@ const Navbar = () => {
   const { logout, auth } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
   };
 
@@ -27,7 +27,7 @@ const Navbar = () => {
       </nav>
       <div className="nav-actions">
         <ThemeToggle />
-        <div className="avatar-pill">{auth?.user?.name?.slice(0, 1) || "U"}</div>
+        <div className="avatar-pill">{auth?.user?.name?.slice(0, 1)?.toUpperCase() || "U"}</div>
         <button className="ghost-button" onClick={handleLogout}>
           Logout
         </button>
@@ -37,4 +37,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-

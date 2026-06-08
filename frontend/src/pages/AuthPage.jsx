@@ -28,8 +28,9 @@ const AuthPage = ({ mode = "login" }) => {
         showToast("Welcome back. Workspace restored.");
       } else {
         await register(form);
-        showToast("Account created. Let’s build momentum.");
+        showToast("Account created. Let's build momentum.");
       }
+
       navigate("/");
     } catch (error) {
       showToast(error.response?.data?.message || "Something went wrong", "error");
@@ -48,14 +49,25 @@ const AuthPage = ({ mode = "login" }) => {
           <span className="eyebrow">Premium productivity, reimagined</span>
           <h1>Plan deeply. Ship calmly. Track everything with TaskFlow.</h1>
           <p>
-            A portfolio-grade productivity suite with secure auth, smart analytics, and an interface
-            designed to feel like a modern SaaS product.
+            A portfolio-grade productivity suite with secure sessions, smart analytics, and an
+            interface designed to feel like a modern SaaS product.
           </p>
         </div>
       </section>
+
       <section className="auth-panel glass">
-        <h2>{isLogin ? "Welcome Back" : "Create Your Account"}</h2>
-        <p>{isLogin ? "Sign in to continue your focused flow." : "Start with a secure productivity hub."}</p>
+        <div className="auth-panel-copy">
+          <span className="eyebrow">
+            {isLogin ? "Secure session sign-in" : "Create your secure workspace"}
+          </span>
+          <h2>{isLogin ? "Welcome Back" : "Create Your Account"}</h2>
+          <p>
+            {isLogin
+              ? "Sign in to continue your focused flow."
+              : "Start with a protected productivity hub backed by Mongo sessions."}
+          </p>
+        </div>
+
         <form onSubmit={handleSubmit} className="auth-form">
           {!isLogin ? (
             <label>
@@ -68,6 +80,7 @@ const AuthPage = ({ mode = "login" }) => {
               />
             </label>
           ) : null}
+
           <label>
             Email
             <input
@@ -78,6 +91,7 @@ const AuthPage = ({ mode = "login" }) => {
               required
             />
           </label>
+
           <label>
             Password
             <input
@@ -89,6 +103,7 @@ const AuthPage = ({ mode = "login" }) => {
             />
             {!isLogin ? <small>{passwordRule}</small> : null}
           </label>
+
           <label className="checkbox-row">
             <input
               type="checkbox"
@@ -97,10 +112,12 @@ const AuthPage = ({ mode = "login" }) => {
             />
             Remember me
           </label>
+
           <button className="primary-button" disabled={submitting}>
             {submitting ? "Please wait..." : isLogin ? "Login" : "Register"}
           </button>
         </form>
+
         <p className="auth-switch">
           {isLogin ? "New to TaskFlow?" : "Already have an account?"}{" "}
           <Link to={isLogin ? "/register" : "/login"}>
@@ -113,4 +130,3 @@ const AuthPage = ({ mode = "login" }) => {
 };
 
 export default AuthPage;
-
