@@ -364,18 +364,4 @@ why in this dahbord is start with tue insted of sunday please start first day wi
 whater ver chnage i done can you add in to readme.md and also make me file for me named prompt.md whihc can shows all prompt which i can give you so please also make and add all prompt whihc i give you
 ```
 
-## 3. Optional Reusable Prompts
 
-You can reuse prompts like these later:
-
-```text
-Update the README to include all latest feature changes and bug fixes.
-```
-
-```text
-Create a prompt.md file that stores all prompts used for this project in one place.
-```
-
-```text
-Convert any demo dashboard data into real data from my database and explain the logic clearly.
-```
