@@ -362,6 +362,10 @@ why in this dahabord is start with tue insted of sunday please start first day w
 ```
 
 ```text
+please add express session based authentication with mongo-compass and also in this some ui bugs like in login page and sign up page margin and padding  and in task page or in other page whihc show all task in this make it like drop and done task like if task in panding and i drop in complee then task is complete and also if date is gone and still task is not done then make category for this like task is not done like that in dahabord page also have ui bugs like all also chnage padding and marging in all text and   also in dahsbord page all section in not in same frame like make navabr and dashboard section in same line so both show same way
+```
+
+```text
 please make me update readme.md and also update prompt.md and also in task section if next page is not then next is not show and not previourse show if user go for next page then previous show and if next page is exits then next page option  show and make navbar to lock and make small becuse it is too big and make use evry space and make it better
 ```
 
