@@ -349,19 +349,16 @@ Build the UI with premium animations and a polished user experience that stands 
 ## 2. Follow-Up Prompts Used
 
 ```text
-can you see issue please solve it this issue in priority section color is not shown properly please see and solve it
+(in this i give you image) for color is not visible in priotiy section  can you see issue please solve it this issue in priority section color is not shown properly please see and solve it
 ```
 
-```text
+```text 
+(Graph show temp data so that i updated it )
 in weekly moment have temp data or based on my task releted please explain if temp data then make beased on my task
 ```
 
 ```text
-why in this dahbord is start with tue insted of sunday please start first day with sunday and show in graph first day sunday then monday and so on
-```
-
-```text
-whater ver chnage i done can you add in to readme.md and also make me file for me named prompt.md whihc can shows all prompt which i can give you so please also make and add all prompt whihc i give you
+why in this dahabord is start with tue insted of sunday please start first day with sunday and show in graph first day sunday then monday and so on
 ```
 
 
