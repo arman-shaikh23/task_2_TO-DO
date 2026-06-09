@@ -42,6 +42,16 @@ export const initKeys = () => {
   }
 };
 
+export const getPrivateKey = () => {
+  if (!privateKey) initKeys();
+  return privateKey;
+};
+
+export const getPublicKey = () => {
+  if (!publicKey) initKeys();
+  return publicKey;
+};
+
 export const encryptPayload = (payload) => {
   if (!publicKey) initKeys();
   const buffer = Buffer.from(JSON.stringify(payload), "utf8");

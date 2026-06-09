@@ -1,6 +1,6 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
-import { decryptPayload } from "../utils/pki.js";
+import { decryptPayload, getPublicKey } from "../utils/pki.js";
 
 export const protect = async (req, res, next) => {
   const token = req.cookies["taskflow.accessToken"];
@@ -10,7 +10,7 @@ export const protect = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "taskflow-dev-secret");
+    const decoded = jwt.verify(token, getPublicKey(), { algorithms: ["RS256"] });
     const decryptedPayload = decryptPayload(decoded.data);
 
     req.user = await User.findById(decryptedPayload.userId).select("-password");

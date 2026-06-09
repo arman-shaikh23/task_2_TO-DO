@@ -4,7 +4,7 @@ import RefreshToken from "../models/RefreshToken.js";
 import { isStrongPassword } from "../utils/validators.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
-import { encryptPayload } from "../utils/pki.js";
+import { encryptPayload, getPrivateKey } from "../utils/pki.js";
 import crypto from "crypto";
 
 const buildAuthPayload = (user, rememberMe = false) => ({
@@ -23,7 +23,8 @@ const issueTokens = async (res, user, rememberMe) => {
   const payload = { userId: user._id.toString(), tokenVersion: user.tokenVersion };
   const encryptedData = encryptPayload(payload);
   
-  const accessToken = jwt.sign({ data: encryptedData }, process.env.JWT_SECRET || "taskflow-dev-secret", {
+  const accessToken = jwt.sign({ data: encryptedData }, getPrivateKey(), {
+    algorithm: "RS256",
     expiresIn: "15m",
   });
 

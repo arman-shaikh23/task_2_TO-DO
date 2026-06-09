@@ -1,57 +1,48 @@
 import Todo from "../models/Todo.js";
 import { sanitizePagination } from "../utils/validators.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { buildFilters, buildSort } from "../utils/todoHelpers.js";
 
 const baseCategories = ["Personal", "Work", "Study", "Health", "Shopping", "Other"];
-
-const buildFilters = (userId, query) => {
-  const filters = { user: userId };
-
-  if (query.search) {
-    filters.$or = [
-      { title: { $regex: query.search, $options: "i" } },
-      { description: { $regex: query.search, $options: "i" } },
-      { category: { $regex: query.search, $options: "i" } },
-    ];
-  }
-
-  if (query.status && query.status !== "all") {
-    filters.status = query.status;
-  }
-
-  if (query.priority && query.priority !== "all") {
-    filters.priority = query.priority;
-  }
-
-  if (query.category && query.category !== "all") {
-    filters.category = query.category;
-  }
-
-  return filters;
-};
-
-const buildSort = (sortBy = "latest") => {
-  const sortMap = {
-    latest: { createdAt: -1 },
-    oldest: { createdAt: 1 },
-    dueSoon: { dueDate: 1, createdAt: -1 },
-    priority: { priority: 1, dueDate: 1 },
-    custom: { order: 1, createdAt: -1 },
-  };
-
-  return sortMap[sortBy] || sortMap.latest;
-};
 
 export const getTodos = asyncHandler(async (req, res) => {
   const { page, limit, skip } = sanitizePagination(req.query.page, req.query.limit);
   const filters = buildFilters(req.user._id, req.query);
   const sort = buildSort(req.query.sortBy);
 
-  const [todos, total, distinctCategories] = await Promise.all([
-    Todo.find(filters).sort(sort).skip(skip).limit(limit),
-    Todo.countDocuments(filters),
+  // We use aggregation to handle custom sorting weights (e.g., for priority)
+  const pipeline = [
+    { $match: filters },
+    {
+      $addFields: {
+        priorityWeight: {
+          $switch: {
+            branches: [
+              { case: { $eq: ["$priority", "High"] }, then: 3 },
+              { case: { $eq: ["$priority", "Medium"] }, then: 2 },
+              { case: { $eq: ["$priority", "Low"] }, then: 1 },
+            ],
+            default: 0,
+          },
+        },
+      },
+    },
+    { $sort: sort },
+    {
+      $facet: {
+        metadata: [{ $count: "total" }],
+        data: [{ $skip: skip }, { $limit: limit }],
+      },
+    },
+  ];
+
+  const [results, distinctCategories] = await Promise.all([
+    Todo.aggregate(pipeline),
     Todo.distinct("category", { user: req.user._id }),
   ]);
+
+  const todos = results[0].data;
+  const total = results[0].metadata[0]?.total || 0;
 
   const categorySet = new Set(baseCategories);
   distinctCategories.forEach((category) => categorySet.add(category));
