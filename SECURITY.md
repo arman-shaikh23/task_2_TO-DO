@@ -6,10 +6,16 @@ This document details the security mechanisms implemented in TaskFlow, specifica
 
 TaskFlow utilizes a dual-token architecture combined with Public Key Infrastructure (PKI) encryption to provide maximum security while remaining stateless.
 
-### 1. PKI-Encrypted JSON Web Tokens (JWT)
-**What it is:** The Access Token is a JWT. However, instead of the payload being standard Base64 encoded JSON (which is easily readable), the payload is RSA-encrypted using the server's Private/Public key pair before being signed.
+### 1. PKI-Encrypted JSON Web Tokens (JWT) with RS256
+**What it is:** The Access Token is a JWT. It uses **RS256 (RSA Signature with SHA-256)**, an asymmetric algorithm. This means the server signs the token using its **Private Key** and anyone can verify it using the **Public Key** (though in this architecture, only the server verifies it). Additionally, the payload is RSA-encrypted using the server's Public Key before being signed.
 **What attack it prevents:** 
-- **Token Interception/Data Leakage:** If a malicious actor successfully intercepts the JWT (via Man-in-the-Middle or a compromised client device), they cannot read the claims (like `userId` or `email`) because they lack the server's private key to decrypt it.
+- **Token Interception/Data Leakage:** Even if intercepted, the payload is encrypted and cannot be read without the private key.
+- **Algorithm Confusion:** Using a fixed algorithm (RS256) prevents "None" algorithm attacks or HMAC vs RSA confusion.
+
+### 6. Input Sanitization & Regex Protection
+**What it is:** All user-provided search queries are escaped before being used in MongoDB `$regex` queries.
+**What attack it prevents:**
+- **Regex Injection / ReDoS:** Prevents attackers from providing malicious regex patterns (like `((( ` or complex nested quantifiers) that could crash the server or cause a Denial of Service.
 
 ### 2. Short-Lived Access Tokens
 **What it is:** The Access Token is configured to expire very quickly (15 minutes).

@@ -37,3 +37,53 @@ Standard JWTs contain a base64 encoded payload, which is trivially decodable by 
 - Stolen access tokens are only useful for a maximum of 15 minutes.
 - Stolen refresh tokens are mitigated by rotation (they can only be used once).
 - Password changes instantly sever all unauthorized access.
+
+## Security & Logic Fixes: Priority Sorting, Regex Sanitization, and RS256 Upgrade
+
+### Implemented Changes
+1. **Upgraded JWT Algorithm to RS256:**
+   - Transitioned from HS256 (symmetric) to RS256 (asymmetric).
+   - Tokens are now signed using the server's **Private Key** and verified using the **Public Key**.
+   - This prevents "Algorithm Confusion" attacks and aligns with industry best practices for PKI-based systems.
+2. **Fixed Priority Sorting Logic:**
+   - Refactored the Task retrieval endpoint to use MongoDB **Aggregation**.
+   - Implemented a numeric weight mapping for priorities: `High (3)`, `Medium (2)`, `Low (1)`.
+   - Tasks are now correctly sorted by their importance rather than alphabetically.
+3. **Implemented Regex Sanitization:**
+   - Added a utility to escape special characters in search queries.
+   - This mitigates **Regex Injection** and **Regular Expression Denial of Service (ReDoS)** attacks (e.g., when a user enters `(((`).
+
+### Security Benefits
+- **Asymmetric Signing:** Enhanced security by keeping the signing key (Private) separate from the verification key (Public).
+- **Correct Data Integrity:** Users see tasks in the expected order of urgency.
+- Improved Availability: The system is now resilient against malicious search inputs that could previously cause server-side errors or performance degradation.
+
+## Quality Assurance: Unit Testing Suite with Jest
+
+### Implemented Changes
+1. **Integrated Jest Testing Framework:**
+   - Installed `jest` in the backend.
+   - Configured `npm test` script to support ES Modules via `--experimental-vm-modules`.
+2. **Refactored Logic for Testability:**
+   - Extracted core Todo filtering and sorting logic from the controller into `backend/utils/todoHelpers.js`.
+   - This allows testing business logic without mocking the entire MongoDB/Express environment.
+3. **Comprehensive Unit Test Suite:**
+   - **`validators.test.js`:** Tests for password strength and pagination safety.
+   - **`pki.test.js`:** Tests for RSA encryption and decryption of JWT payloads.
+   - **`todoHelpers.test.js`:** Tests for regex escaping (ReDoS protection), filter building, and priority weights.
+
+### Benefits
+- **Regression Prevention:** Ensures that future changes to security or logic don't break existing functionality.
+- Reliability: Empirically verified that the complex PKI encryption and regex sanitization work as expected.
+- Code Quality: Refactoring for tests led to a cleaner, more modular utility structure.
+
+## Security Improvement: Sensitive Key Protection
+
+### Implemented Changes
+1. **Ignored RSA Keys in Git:**
+   - Added `backend/keys/` to the root `.gitignore` file.
+   - Removed `private.pem` and `public.pem` from the git index using `git rm --cached`.
+2. **Prevented Credential Leakage:**
+   - This ensures that the server's private and public RSA keys are never pushed to GitHub or other remote repositories, preventing potential session hijacking or data decryption by unauthorized parties.
+
+

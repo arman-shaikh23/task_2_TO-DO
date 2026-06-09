@@ -7,4 +7,5 @@ Thumbs.db
 coverage/
 frontend/dist/
 backend/logs/
+backend/keys/
 

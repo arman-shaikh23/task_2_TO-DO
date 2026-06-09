@@ -182,7 +182,23 @@ npm run dev
 - The codebase is split into reusable contexts, pages, services, controllers, and models to keep the structure beginner-friendly and scalable.
 - The current PWA support is scaffolded with a web manifest and can be extended with a service worker if you want offline support next.
 
-## Known Behavior
+## Testing
+
+TaskFlow includes a comprehensive unit testing suite for the backend logic using **Jest**. 
+
+### Key Tested Areas:
+- **Validators:** Ensures password strength rules and pagination sanitization work correctly.
+- **PKI Utility:** Verifies that RSA encryption and decryption of JWT payloads are reliable.
+- **Todo Helpers:** Validates regex escaping for search (mitigating ReDoS), filter building, and priority weight logic.
+
+### Running Tests:
+
+```bash
+cd backend
+npm test
+```
+
+Tests are executed using `node --experimental-vm-modules` to support ES Modules natively.
 
 - The Weekly Momentum chart is now data-driven and calendar-based. It starts on Sunday and ends on Saturday.
 - Weekly activity is currently calculated as: `tasks created + tasks completed` for each day.

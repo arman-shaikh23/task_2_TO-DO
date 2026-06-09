@@ -384,3 +384,19 @@ in this project we use express session with mongodb compasss but chnage it and m
 ```text
 in this project we alredy use jwt but we make more secure system so that please use jwt revocation and from this use 1 type whihc is give refresh token and rotation system and also make security.md file so that show jwt revocation and rotation system how it works and what is benefit of this and also update readme.md and prompt.md and chnageble-log.md for this chnage
 ```
+
+```text
+
+please fix in custom order section Priority Sort- Open Tasks page - sort by Priority- Check the order you see - is it correct- Fix the sort logic 
+also fix  Search Input- Open Tasks page - type ((( in the search box- Open DevTools - Network tab - check the response- What type of injection attack is this similar to Research it and tell me- Fix it so the app handles bad input safely 
+also chnage  JWT Algorithm- Login to the app - copy taskflow access Token- Go to jwt.io - paste the token - check the alg field in the header what does it show instead- Please implement it to RS256- Fix jwt.sign() and jwt.verify() to actually use RS256 with your key pair
+also update my changeble-log propmt and security redme all file update
+```
+
+```text
+in this project which type of tesing we can do  and my evaluator ask me to perfrom unit testing and make it fully working and also say that use jest please use it and suggest it and whater you change then update readme propmp and chnagble file also and make testing best working
+```
+
+```text
+please remove keys from git means in folder sturctre present but from github remove becuse this means from github means paste into .gitignore file
+```
