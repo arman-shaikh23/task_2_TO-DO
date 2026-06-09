@@ -380,3 +380,7 @@ when 3 to 4 task added in any col named pending overdue or completed then one ui
 ```text
 in this project we use express session with mongodb compasss but chnage it and make it to use jashonweb token and implete with pki and encryption and decytpytion if jwt is stolen then any hacker not steal our password or information so chnage from express session to jwt pki encrypt and dcrypt 
 ```
+
+```text
+in this project we alredy use jwt but we make more secure system so that please use jwt revocation and from this use 1 type whihc is give refresh token and rotation system and also make security.md file so that show jwt revocation and rotation system how it works and what is benefit of this and also update readme.md and prompt.md and chnageble-log.md for this chnage
+```
