@@ -1,9 +1,11 @@
 import User from "../models/User.js";
 import Todo from "../models/Todo.js";
+import RefreshToken from "../models/RefreshToken.js";
 import { isStrongPassword } from "../utils/validators.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
 import { encryptPayload } from "../utils/pki.js";
+import crypto from "crypto";
 
 const buildAuthPayload = (user, rememberMe = false) => ({
   isAuthenticated: true,
@@ -16,21 +18,40 @@ const buildAuthPayload = (user, rememberMe = false) => ({
   },
 });
 
-const issueToken = (res, userId, rememberMe) => {
-  const payload = { userId: userId.toString() };
+const issueTokens = async (res, user, rememberMe) => {
+  // 1. Generate Access Token (Short-lived: 15 minutes)
+  const payload = { userId: user._id.toString(), tokenVersion: user.tokenVersion };
   const encryptedData = encryptPayload(payload);
   
-  const token = jwt.sign({ data: encryptedData }, process.env.JWT_SECRET || "taskflow-dev-secret", {
-    expiresIn: rememberMe ? "7d" : "1d",
+  const accessToken = jwt.sign({ data: encryptedData }, process.env.JWT_SECRET || "taskflow-dev-secret", {
+    expiresIn: "15m",
+  });
+
+  // 2. Generate Refresh Token (Long-lived: 7 days)
+  const refreshTokenString = crypto.randomBytes(40).toString("hex");
+  const refreshTokenExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days
+
+  await RefreshToken.create({
+    token: refreshTokenString,
+    user: user._id,
+    expiresAt: refreshTokenExpiresAt,
   });
 
   const isProduction = process.env.NODE_ENV === "production";
   
-  res.cookie("taskflow.token", token, {
+  // 3. Set Cookies
+  res.cookie("taskflow.accessToken", accessToken, {
     httpOnly: true,
     sameSite: "lax",
     secure: isProduction,
-    maxAge: rememberMe ? 1000 * 60 * 60 * 24 * 7 : undefined,
+    maxAge: 1000 * 60 * 15, // 15 minutes
+  });
+
+  res.cookie("taskflow.refreshToken", refreshTokenString, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProduction,
+    maxAge: rememberMe ? 1000 * 60 * 60 * 24 * 7 : undefined, // 7 days or session
   });
 };
 
@@ -53,7 +74,7 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
 
   const user = await User.create({ name, email, password });
-  issueToken(res, user._id, rememberMe);
+  await issueTokens(res, user, rememberMe);
   res.status(201).json(buildAuthPayload(user, rememberMe));
 });
 
@@ -69,7 +90,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: "Invalid credentials" });
   }
 
-  issueToken(res, user._id, rememberMe);
+  await issueTokens(res, user, rememberMe);
   res.json(buildAuthPayload(user, rememberMe));
 });
 
@@ -92,7 +113,7 @@ export const getProfile = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, email } = req.body;
+  const { name, email, password } = req.body;
   const user = await User.findById(req.user._id);
 
   if (!user) {
@@ -110,6 +131,17 @@ export const updateProfile = asyncHandler(async (req, res) => {
   user.name = name?.trim() || user.name;
   user.email = normalizedEmail || user.email;
 
+  if (password) {
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        message: "Password must be 8+ chars with uppercase, lowercase and number",
+      });
+    }
+    user.password = password;
+    user.tokenVersion += 1; // Invalidate all existing tokens globally
+    await RefreshToken.deleteMany({ user: user._id }); // Clear all refresh tokens
+  }
+
   const updated = await user.save();
 
   res.json({
@@ -122,6 +154,50 @@ export const updateProfile = asyncHandler(async (req, res) => {
 });
 
 export const logoutUser = asyncHandler(async (req, res) => {
-  res.clearCookie("taskflow.token");
+  const refreshToken = req.cookies["taskflow.refreshToken"];
+  
+  if (refreshToken) {
+    await RefreshToken.findOneAndDelete({ token: refreshToken });
+  }
+
+  res.clearCookie("taskflow.accessToken");
+  res.clearCookie("taskflow.refreshToken");
   res.json({ message: "Logged out successfully" });
+});
+
+export const refreshTokenUser = asyncHandler(async (req, res) => {
+  const refreshToken = req.cookies["taskflow.refreshToken"];
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: "No refresh token provided" });
+  }
+
+  // 1. Find and validate the refresh token
+  const existingToken = await RefreshToken.findOne({ token: refreshToken });
+
+  if (!existingToken) {
+    // Optional: Detect reuse. If we tracked families, we could invalidate all here.
+    return res.status(401).json({ message: "Invalid refresh token" });
+  }
+
+  if (existingToken.expiresAt < new Date()) {
+    await RefreshToken.deleteOne({ _id: existingToken._id });
+    return res.status(401).json({ message: "Refresh token expired" });
+  }
+
+  // 2. Refresh Token Rotation: Delete the old one
+  await RefreshToken.deleteOne({ _id: existingToken._id });
+
+  // 3. Find the user to ensure they still exist and to get their current tokenVersion
+  const user = await User.findById(existingToken.user);
+  if (!user) {
+    return res.status(401).json({ message: "User no longer exists" });
+  }
+
+  // 4. Issue a fresh pair of tokens
+  // If the user had a session cookie, preserve that behavior
+  const isSessionCookie = !req.cookies["taskflow.refreshToken"]?.maxAge; // basic heuristic
+  await issueTokens(res, user, !isSessionCookie);
+
+  res.json({ message: "Tokens refreshed successfully" });
 });
