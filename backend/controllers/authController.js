@@ -2,6 +2,8 @@ import User from "../models/User.js";
 import Todo from "../models/Todo.js";
 import { isStrongPassword } from "../utils/validators.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import jwt from "jsonwebtoken";
+import { encryptPayload } from "../utils/pki.js";
 
 const buildAuthPayload = (user, rememberMe = false) => ({
   isAuthenticated: true,
@@ -14,26 +16,23 @@ const buildAuthPayload = (user, rememberMe = false) => ({
   },
 });
 
-const persistSession = (req, userId, rememberMe) =>
-  new Promise((resolve, reject) => {
-    req.session.userId = userId.toString();
-    req.session.rememberMe = Boolean(rememberMe);
-
-    if (rememberMe) {
-      req.session.cookie.maxAge = 1000 * 60 * 60 * 24 * 7;
-    } else {
-      req.session.cookie.expires = false;
-    }
-
-    req.session.save((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve();
-    });
+const issueToken = (res, userId, rememberMe) => {
+  const payload = { userId: userId.toString() };
+  const encryptedData = encryptPayload(payload);
+  
+  const token = jwt.sign({ data: encryptedData }, process.env.JWT_SECRET || "taskflow-dev-secret", {
+    expiresIn: rememberMe ? "7d" : "1d",
   });
+
+  const isProduction = process.env.NODE_ENV === "production";
+  
+  res.cookie("taskflow.token", token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProduction,
+    maxAge: rememberMe ? 1000 * 60 * 60 * 24 * 7 : undefined,
+  });
+};
 
 export const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, rememberMe } = req.body;
@@ -54,7 +53,7 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
 
   const user = await User.create({ name, email, password });
-  await persistSession(req, user._id, rememberMe);
+  issueToken(res, user._id, rememberMe);
   res.status(201).json(buildAuthPayload(user, rememberMe));
 });
 
@@ -70,7 +69,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: "Invalid credentials" });
   }
 
-  await persistSession(req, user._id, rememberMe);
+  issueToken(res, user._id, rememberMe);
   res.json(buildAuthPayload(user, rememberMe));
 });
 
@@ -83,7 +82,7 @@ export const getProfile = asyncHandler(async (req, res) => {
 
   res.json({
     user: req.user,
-    rememberMe: Boolean(req.session.rememberMe),
+    rememberMe: true,
     stats: {
       totalTasks: todos.length,
       completedTasks,
@@ -123,8 +122,6 @@ export const updateProfile = asyncHandler(async (req, res) => {
 });
 
 export const logoutUser = asyncHandler(async (req, res) => {
-  req.session.destroy(() => {
-    res.clearCookie("taskflow.sid");
-    res.json({ message: "Logged out successfully" });
-  });
+  res.clearCookie("taskflow.token");
+  res.json({ message: "Logged out successfully" });
 });

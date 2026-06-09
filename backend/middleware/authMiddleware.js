@@ -1,12 +1,19 @@
 import User from "../models/User.js";
+import jwt from "jsonwebtoken";
+import { decryptPayload } from "../utils/pki.js";
 
 export const protect = async (req, res, next) => {
-  if (!req.session?.userId) {
-    return res.status(401).json({ message: "Not authorized" });
+  const token = req.cookies["taskflow.token"];
+  
+  if (!token) {
+    return res.status(401).json({ message: "Not authorized, no token" });
   }
 
   try {
-    req.user = await User.findById(req.session.userId).select("-password");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "taskflow-dev-secret");
+    const decryptedPayload = decryptPayload(decoded.data);
+
+    req.user = await User.findById(decryptedPayload.userId).select("-password");
 
     if (!req.user) {
       return res.status(401).json({ message: "User not found" });
@@ -14,6 +21,6 @@ export const protect = async (req, res, next) => {
 
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Invalid session" });
+    return res.status(401).json({ message: "Not authorized, token failed" });
   }
 };
