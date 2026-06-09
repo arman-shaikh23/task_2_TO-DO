@@ -38,7 +38,7 @@ task_2/
 
 ## Features
 
-- JWT auth with registration, login, logout, protected routes, remember-me persistence, and password validation
+- **PKI-Encrypted JWT Auth**: Registration, login, logout, protected routes, and remember-me persistence. The JWT payload is RSA-encrypted to ensure complete data privacy even if the token is compromised.
 - CRUD task management with status toggle, search, filters, sort, pagination, due dates, priorities, and custom categories
 - Drag-and-drop reordering with backend persistence
 - Dashboard analytics for totals, completed, pending, high-priority, today, upcoming, productivity score, and weekly momentum
@@ -48,7 +48,7 @@ task_2/
 
 ## Recent Improvements
 
-- Fixed the priority dropdown visibility issue so option colors display correctly in the task form.
+- Migrated from `express-session` to stateless, PKI-encrypted JSON Web Tokens (JWT) for enhanced scalability and security.
 - Replaced the demo weekly momentum chart data with real task-based analytics.
 - Updated weekly momentum to use your actual calendar week, always ordered as `Sun, Mon, Tue, Wed, Thu, Fri, Sat`.
 - Weekly momentum now reflects task activity from your own data by counting tasks created and completed per day.

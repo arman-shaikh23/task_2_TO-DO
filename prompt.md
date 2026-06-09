@@ -376,3 +376,7 @@ please see bugs in when i add task at that time task page is undert navabr so th
 ```text
 when 3 to 4 task added in any col named pending overdue or completed then one ui bugs come like one shred line come why this bugs come please solve it 
 ```
+
+```text
+in this project we use express session with mongodb compasss but chnage it and make it to use jashonweb token and implete with pki and encryption and decytpytion if jwt is stolen then any hacker not steal our password or information so chnage from express session to jwt pki encrypt and dcrypt 
+```
